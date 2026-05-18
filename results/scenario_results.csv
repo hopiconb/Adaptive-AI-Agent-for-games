@@ -1,0 +1,31 @@
+id,category,description,agent_side,p1_guard,p2_guard,p1_position,p2_position,p1_move,p2_move,p1_move_frame,p2_move_frame,expected_semantic,expected_action,model_action,passed
+WP-01,whiff_punishment,Opponent in mid-recovery of long attack at mid range.,P1,3,3,-1.0,0.8,STAND,B_ATTACK,0,20,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+WP-02,whiff_punishment,Opponent in normal-attack recovery at close range.,P1,3,3,-0.3,0.4,STAND,N_ATTACK,0,10,ATTACK,"[0, 0, 1]","[0, 0, 0]",False
+WP-03,whiff_punishment,Opponent committed to long attack at far range — attack will whiff.,P1,3,3,-2.0,2.5,STAND,B_ATTACK,0,5,FORWARD,"[0, 1, 0]","[0, 0, 0]",False
+WP-04,whiff_punishment,Long attack deep recovery at the edge of normal-attack reach.,P1,3,3,-0.5,0.3,STAND,B_ATTACK,0,25,ATTACK,"[0, 0, 1]","[0, 0, 0]",False
+WP-05,whiff_punishment,Long attack recovery far away — chase required.,P1,3,3,-2.5,2.0,STAND,B_ATTACK,0,22,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+WP-06,whiff_punishment,Opponent in committed forward dash at close range.,P1,3,3,0.0,0.6,STAND,DASH_FORWARD,0,5,ATTACK,"[0, 0, 1]","[0, 0, 1]",True
+WP-07,whiff_punishment,Special-attack windup at mid range — interrupt window.,P1,3,3,-1.0,1.0,STAND,N_SPECIAL,0,8,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+WP-08,whiff_punishment,Punish opportunity but agent guard is broken.,P1,0,3,-0.5,0.4,STAND,N_ATTACK,0,12,ATTACK,"[0, 0, 1]","[0, 0, 1]",True
+WP-09,whiff_punishment,Cornered opponent in long-attack recovery.,P1,3,3,2.0,3.8,STAND,B_ATTACK,0,25,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+WP-10,whiff_punishment,Normal attack just whiffed at close range.,P1,3,3,-0.3,0.4,STAND,N_ATTACK,0,8,ATTACK,"[0, 0, 1]","[0, 0, 0]",False
+GP-01,guard_pressure,"Full guard, opponent active attack at close range.",P1,3,3,-0.3,0.4,STAND,N_ATTACK,0,4,BACKWARD,"[1, 0, 0]","[0, 0, 0]",False
+GP-02,guard_pressure,"Guard at 2, opponent attacking — block remains optimal.",P1,2,3,-0.3,0.4,STAND,N_ATTACK,0,4,BACKWARD,"[1, 0, 0]","[0, 0, 0]",False
+GP-03,guard_pressure,"Critical guard at 1, opponent attacking.",P1,1,3,-0.3,0.4,STAND,N_ATTACK,0,4,BACKWARD,"[1, 0, 0]","[0, 0, 0]",False
+GP-04,guard_pressure,"Broken guard, opponent advancing — escape.",P1,0,3,-0.3,0.4,STAND,FORWARD,0,5,BACKWARD,"[1, 0, 0]","[0, 0, 0]",False
+GP-05,guard_pressure,"Low guard but opponent in recovery — counter, do not retreat.",P1,1,3,-0.4,0.4,STAND,N_ATTACK,0,11,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+GP-06,guard_pressure,Full guard against close-range special windup.,P1,3,3,-0.5,0.4,STAND,N_SPECIAL,0,10,ATTACK,"[0, 0, 1]","[0, 0, 0]",False
+GP-07,guard_pressure,"Adequate guard, opponent walking — preempt their offense.",P1,2,3,-0.8,0.5,STAND,FORWARD,0,5,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+GP-08,guard_pressure,Cornered with low guard — must contest space outward.,P1,1,3,-3.8,-2.0,STAND,FORWARD,0,5,FORWARD_ATTACK,"[0, 1, 1]","[1, 0, 0]",False
+SP-01,special_defense,Special windup at close range — interrupt directly.,P1,3,3,-0.3,0.4,STAND,N_SPECIAL,0,8,ATTACK,"[0, 0, 1]","[0, 0, 0]",False
+SP-02,special_defense,Special windup at mid range — close and interrupt.,P1,3,3,-1.0,1.0,STAND,N_SPECIAL,0,10,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+SP-03,special_defense,Special windup at far range — evade.,P1,3,3,-2.5,1.5,STAND,N_SPECIAL,0,12,BACKWARD,"[1, 0, 0]","[0, 0, 0]",False
+SP-04,special_defense,"Cornered, opponent windup at mid range — must contest.",P1,3,3,-3.8,-1.5,STAND,N_SPECIAL,0,15,FORWARD_ATTACK,"[0, 1, 1]","[1, 0, 0]",False
+SP-05,special_defense,Late special windup at close range — last interrupt window.,P1,3,3,-0.4,0.4,STAND,N_SPECIAL,0,25,ATTACK,"[0, 0, 1]","[0, 0, 0]",False
+SP-06,special_defense,Mid-range special windup with broken guard.,P1,0,3,-1.0,1.0,STAND,N_SPECIAL,0,10,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+NP-01,positional,Symmetric neutral start — claim engagement initiative.,P1,3,3,-2.0,2.0,STAND,STAND,0,0,FORWARD,"[0, 1, 0]","[0, 0, 1]",False
+NP-02,positional,Opponent cornered and idle — apply pressure.,P1,3,3,2.0,3.8,STAND,STAND,0,0,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 1]",False
+NP-03,positional,"Agent in corner, opponent at mid range and idle — escape carefully.",P1,3,3,-3.8,-1.0,STAND,STAND,0,0,FORWARD,"[0, 1, 0]","[1, 0, 1]",False
+NP-04,positional,Mirror walk-forward — both committed at mid range.,P1,3,3,-1.2,1.2,FORWARD,FORWARD,5,5,ATTACK,"[0, 0, 1]","[1, 0, 1]",False
+NP-05,positional,Opponent retreating — chase aggressively.,P1,3,3,-1.5,1.5,STAND,BACKWARD,0,5,FORWARD_ATTACK,"[0, 1, 1]","[0, 0, 0]",False
+NP-06,positional,Cornered against a special windup — only one winning play.,P1,3,3,-3.8,-2.5,STAND,N_SPECIAL,0,10,FORWARD_ATTACK,"[0, 1, 1]","[1, 0, 0]",False
