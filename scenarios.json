@@ -1,0 +1,332 @@
+{
+  "metadata": {
+    "description": "Structured evaluation dataset for FOOTSIES reinforcement learning agent. 30 scripted scenarios across four tactical categories: whiff punishment (10), guard pressure response (8), special attack defense (6), and neutral/positional play (6).",
+    "version": "1.0",
+    "stage_bounds_x": [-4.6, 4.6],
+    "guard_max": 3,
+    "format_notes": {
+      "side": "P1 means agent occupies the negative-X side of the stage; P2 means positive-X. 'forward' is resolved against agent.side at evaluation time.",
+      "position": "Continuous X coordinate. Agent always on the lower X if side=P1.",
+      "guard": "Integer 0-3. 0 means guard broken (one hit kills).",
+      "move": "Semantic name. Resolve to integer index via metadata.move_map. If your build of Footsies-Gym uses different indices, adjust the map only — scenarios stay valid.",
+      "move_frame": "Frame counter within the current move. Used to distinguish startup, active, and recovery phases.",
+      "expected_action": "Semantic action label. Resolve to MultiBinary(3) = [move_left, move_right, attack] via metadata.action_map, with FORWARD/BACKWARD direction resolved against agent.side."
+    },
+    "move_map": {
+      "_comment": "Best-guess indices based on the standard FOOTSIES FootsiesMove enum. Verify against your env's source (footsies_gym/moves.py or equivalent) and adjust if your fork differs.",
+      "STAND": 0,
+      "FORWARD": 1,
+      "BACKWARD": 2,
+      "DASH_FORWARD": 3,
+      "DASH_BACKWARD": 4,
+      "N_ATTACK": 5,
+      "B_ATTACK": 6,
+      "N_SPECIAL": 7,
+      "B_SPECIAL": 8,
+      "DAMAGE": 9,
+      "GUARD_M": 10,
+      "GUARD_STAND": 11,
+      "GUARD_CROUCH": 12,
+      "GUARD_BREAK": 13,
+      "DEAD": 14
+    },
+    "action_map": {
+      "_comment": "Each entry is [move_left, move_right, attack]. FORWARD and BACKWARD are agent-relative — resolve at evaluation by checking agent.side.",
+      "IDLE": [0, 0, 0],
+      "ATTACK": [0, 0, 1],
+      "FORWARD_P1": [0, 1, 0],
+      "FORWARD_P2": [1, 0, 0],
+      "BACKWARD_P1": [1, 0, 0],
+      "BACKWARD_P2": [0, 1, 0],
+      "FORWARD_ATTACK_P1": [0, 1, 1],
+      "FORWARD_ATTACK_P2": [1, 0, 1],
+      "BACKWARD_ATTACK_P1": [1, 0, 1],
+      "BACKWARD_ATTACK_P2": [0, 1, 1]
+    },
+    "frame_phase_hints": {
+      "_comment": "Approximate frame boundaries for the principal moves. Use these to validate that your scenario's move_frame falls in the intended phase.",
+      "N_ATTACK": { "startup": [0, 3], "active": [3, 6], "recovery": [6, 15] },
+      "B_ATTACK": { "startup": [0, 8], "active": [8, 13], "recovery": [13, 30] },
+      "N_SPECIAL": { "windup": [0, 28], "active": [28, 32], "recovery": [32, 45] },
+      "B_SPECIAL": { "windup": [0, 28], "active": [28, 32], "recovery": [32, 45] }
+    }
+  },
+
+  "scenarios": [
+
+    {
+      "id": "WP-01",
+      "category": "whiff_punishment",
+      "description": "Opponent in mid-recovery of long attack at mid range.",
+      "agent": { "side": "P1", "position": -1.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.8, "guard": 3, "move": "B_ATTACK", "move_frame": 20 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Opponent committed to a long attack and is now in recovery. Forward+attack closes the small remaining gap and lands during the recovery window before they can block."
+    },
+    {
+      "id": "WP-02",
+      "category": "whiff_punishment",
+      "description": "Opponent in normal-attack recovery at close range.",
+      "agent": { "side": "P1", "position": -0.3, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_ATTACK", "move_frame": 10 },
+      "expected_action": "ATTACK",
+      "rationale": "Agent is already within normal-attack reach; the opponent's normal whiffed and is in recovery. A neutral attack lands without needing to advance and risks no overshoot."
+    },
+    {
+      "id": "WP-03",
+      "category": "whiff_punishment",
+      "description": "Opponent committed to long attack at far range — attack will whiff.",
+      "agent": { "side": "P1", "position": -2.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 2.5, "guard": 3, "move": "B_ATTACK", "move_frame": 5 },
+      "expected_action": "FORWARD",
+      "rationale": "Opponent is too far for their long attack to reach; they will enter recovery in open space. Forward (without attack) closes distance to set up the actual punish on the next decision step."
+    },
+    {
+      "id": "WP-04",
+      "category": "whiff_punishment",
+      "description": "Long attack deep recovery at the edge of normal-attack reach.",
+      "agent": { "side": "P1", "position": -0.5, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.3, "guard": 3, "move": "B_ATTACK", "move_frame": 25 },
+      "expected_action": "ATTACK",
+      "rationale": "Opponent is in deep recovery and within normal-attack range. Pure attack is preferred over forward+attack to avoid running past the hit-box."
+    },
+    {
+      "id": "WP-05",
+      "category": "whiff_punishment",
+      "description": "Long attack recovery far away — chase required.",
+      "agent": { "side": "P1", "position": -2.5, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 2.0, "guard": 3, "move": "B_ATTACK", "move_frame": 22 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Opponent in recovery but distance prevents an immediate hit. Forward+attack reduces the gap while threatening; the attack input also reduces reaction window if opponent recovers earlier than expected."
+    },
+    {
+      "id": "WP-06",
+      "category": "whiff_punishment",
+      "description": "Opponent in committed forward dash at close range.",
+      "agent": { "side": "P1", "position": 0.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.6, "guard": 3, "move": "DASH_FORWARD", "move_frame": 5 },
+      "expected_action": "ATTACK",
+      "rationale": "Dashing extends the opponent's hurtbox in a predictable linear path with no defensive option. A direct attack catches them mid-dash before they can transition to attack or guard."
+    },
+    {
+      "id": "WP-07",
+      "category": "whiff_punishment",
+      "description": "Special-attack windup at mid range — interrupt window.",
+      "agent": { "side": "P1", "position": -1.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 1.0, "guard": 3, "move": "N_SPECIAL", "move_frame": 8 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Special is unblockable but has long windup. Forward+attack closes range and interrupts the windup before the active strike resolves, converting a defensive threat into a punish."
+    },
+    {
+      "id": "WP-08",
+      "category": "whiff_punishment",
+      "description": "Punish opportunity but agent guard is broken.",
+      "agent": { "side": "P1", "position": -0.5, "guard": 0, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_ATTACK", "move_frame": 12 },
+      "expected_action": "ATTACK",
+      "rationale": "Broken guard makes defense unviable on the next exchange anyway. Taking the certain punish on a recovering opponent is strictly better than retreating into another mixup."
+    },
+    {
+      "id": "WP-09",
+      "category": "whiff_punishment",
+      "description": "Cornered opponent in long-attack recovery.",
+      "agent": { "side": "P1", "position": 2.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 3.8, "guard": 3, "move": "B_ATTACK", "move_frame": 25 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Opponent is recovering against the wall with no retreat option. Forward+attack secures the punish and preserves the corner position even on whiff."
+    },
+    {
+      "id": "WP-10",
+      "category": "whiff_punishment",
+      "description": "Normal attack just whiffed at close range.",
+      "agent": { "side": "P1", "position": -0.3, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_ATTACK", "move_frame": 8 },
+      "expected_action": "ATTACK",
+      "rationale": "Opponent's normal attack is in early recovery. Even with the short recovery window of a normal, the agent's punish startup beats opponent's return-to-neutral at this range."
+    },
+
+    {
+      "id": "GP-01",
+      "category": "guard_pressure",
+      "description": "Full guard, opponent active attack at close range.",
+      "agent": { "side": "P1", "position": -0.3, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_ATTACK", "move_frame": 4 },
+      "expected_action": "BACKWARD",
+      "rationale": "Holding backward blocks the active attack at the cost of one guard charge. With full guard available, accepting the trade is correct."
+    },
+    {
+      "id": "GP-02",
+      "category": "guard_pressure",
+      "description": "Guard at 2, opponent attacking — block remains optimal.",
+      "agent": { "side": "P1", "position": -0.3, "guard": 2, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_ATTACK", "move_frame": 4 },
+      "expected_action": "BACKWARD",
+      "rationale": "Guard at 2 still leaves a safety margin. Blocking maintains spacing and lets the agent react to follow-ups."
+    },
+    {
+      "id": "GP-03",
+      "category": "guard_pressure",
+      "description": "Critical guard at 1, opponent attacking.",
+      "agent": { "side": "P1", "position": -0.3, "guard": 1, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_ATTACK", "move_frame": 4 },
+      "expected_action": "BACKWARD",
+      "rationale": "Guard about to break, but the immediate threat is the active strike. Blocking now and gaining space lets guard regenerate before the next exchange."
+    },
+    {
+      "id": "GP-04",
+      "category": "guard_pressure",
+      "description": "Broken guard, opponent advancing — escape.",
+      "agent": { "side": "P1", "position": -0.3, "guard": 0, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "FORWARD", "move_frame": 5 },
+      "expected_action": "BACKWARD",
+      "rationale": "Any attack lands cleanly while guard is broken. Pure backward maximizes evasion distance and gives guard time to regenerate."
+    },
+    {
+      "id": "GP-05",
+      "category": "guard_pressure",
+      "description": "Low guard but opponent in recovery — counter, do not retreat.",
+      "agent": { "side": "P1", "position": -0.4, "guard": 1, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_ATTACK", "move_frame": 11 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Despite low guard, the opponent cannot defend during recovery. The punish window dominates the defensive risk; retreating wastes the opportunity."
+    },
+    {
+      "id": "GP-06",
+      "category": "guard_pressure",
+      "description": "Full guard against close-range special windup.",
+      "agent": { "side": "P1", "position": -0.5, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_SPECIAL", "move_frame": 10 },
+      "expected_action": "ATTACK",
+      "rationale": "Special is unblockable; guard charges offer no protection. Normal attack during windup interrupts the special before its active frames resolve."
+    },
+    {
+      "id": "GP-07",
+      "category": "guard_pressure",
+      "description": "Adequate guard, opponent walking — preempt their offense.",
+      "agent": { "side": "P1", "position": -0.8, "guard": 2, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.5, "guard": 3, "move": "FORWARD", "move_frame": 5 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Opponent is uncommitted (walking, not attacking). Advancing with attack claims tempo and forces a defensive reaction before they reach their preferred poking range."
+    },
+    {
+      "id": "GP-08",
+      "category": "guard_pressure",
+      "description": "Cornered with low guard — must contest space outward.",
+      "agent": { "side": "P1", "position": -3.8, "guard": 1, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": -2.0, "guard": 3, "move": "FORWARD", "move_frame": 5 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "No retreat available against the wall. Staying passive guarantees pressure to guard break. Forward+attack contests opponent's advance and may force them to commit defensively."
+    },
+
+    {
+      "id": "SP-01",
+      "category": "special_defense",
+      "description": "Special windup at close range — interrupt directly.",
+      "agent": { "side": "P1", "position": -0.3, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_SPECIAL", "move_frame": 8 },
+      "expected_action": "ATTACK",
+      "rationale": "Already within normal-attack reach; pure attack interrupts the windup. Forward input would overshoot."
+    },
+    {
+      "id": "SP-02",
+      "category": "special_defense",
+      "description": "Special windup at mid range — close and interrupt.",
+      "agent": { "side": "P1", "position": -1.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 1.0, "guard": 3, "move": "N_SPECIAL", "move_frame": 10 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Windup phase still has ~18 frames remaining; forward step plus attack reaches in time to interrupt."
+    },
+    {
+      "id": "SP-03",
+      "category": "special_defense",
+      "description": "Special windup at far range — evade.",
+      "agent": { "side": "P1", "position": -2.5, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 1.5, "guard": 3, "move": "N_SPECIAL", "move_frame": 12 },
+      "expected_action": "BACKWARD",
+      "rationale": "Distance is too great to reach the opponent before special becomes active. Backward dash maximizes the gap and forces a whiff."
+    },
+    {
+      "id": "SP-04",
+      "category": "special_defense",
+      "description": "Cornered, opponent windup at mid range — must contest.",
+      "agent": { "side": "P1", "position": -3.8, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": -1.5, "guard": 3, "move": "N_SPECIAL", "move_frame": 15 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Wall removes the backward evasion option. Forward+attack is the only winning play — contest the windup or take the hit."
+    },
+    {
+      "id": "SP-05",
+      "category": "special_defense",
+      "description": "Late special windup at close range — last interrupt window.",
+      "agent": { "side": "P1", "position": -0.4, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 0.4, "guard": 3, "move": "N_SPECIAL", "move_frame": 25 },
+      "expected_action": "ATTACK",
+      "rationale": "Only a few windup frames remain, but normal-attack startup is faster than the residual windup. Immediate attack still lands first at this range."
+    },
+    {
+      "id": "SP-06",
+      "category": "special_defense",
+      "description": "Mid-range special windup with broken guard.",
+      "agent": { "side": "P1", "position": -1.0, "guard": 0, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 1.0, "guard": 3, "move": "N_SPECIAL", "move_frame": 10 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Broken guard makes evading less safe (next exchange would be lethal anyway). Forward+attack attempts the interrupt — the higher-variance but only winning option."
+    },
+
+    {
+      "id": "NP-01",
+      "category": "positional",
+      "description": "Symmetric neutral start — claim engagement initiative.",
+      "agent": { "side": "P1", "position": -2.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 2.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "expected_action": "FORWARD",
+      "rationale": "Both characters at neutral. Forward (without attack) advances toward effective poking range without committing to a recovery-vulnerable move."
+    },
+    {
+      "id": "NP-02",
+      "category": "positional",
+      "description": "Opponent cornered and idle — apply pressure.",
+      "agent": { "side": "P1", "position": 2.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 3.8, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Cornered idle opponent has limited escape options. Forward+attack threatens the hit while denying any forward escape."
+    },
+    {
+      "id": "NP-03",
+      "category": "positional",
+      "description": "Agent in corner, opponent at mid range and idle — escape carefully.",
+      "agent": { "side": "P1", "position": -3.8, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": -1.0, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "expected_action": "FORWARD",
+      "rationale": "Need to escape the corner before opponent commits. Pure forward (no attack) avoids whiffing into open air and preserves the option to react to opponent's next move."
+    },
+    {
+      "id": "NP-04",
+      "category": "positional",
+      "description": "Mirror walk-forward — both committed at mid range.",
+      "agent": { "side": "P1", "position": -1.2, "guard": 3, "move": "FORWARD", "move_frame": 5 },
+      "opponent": { "position": 1.2, "guard": 3, "move": "FORWARD", "move_frame": 5 },
+      "expected_action": "ATTACK",
+      "rationale": "Both characters committed to forward movement and converging into poke range. Normal attack has the fastest startup; first to attack wins the exchange."
+    },
+    {
+      "id": "NP-05",
+      "category": "positional",
+      "description": "Opponent retreating — chase aggressively.",
+      "agent": { "side": "P1", "position": -1.5, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": 1.5, "guard": 3, "move": "BACKWARD", "move_frame": 5 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Opponent voluntarily yielding ground. Forward+attack contests the retreat and keeps them moving toward the wall without giving up tempo."
+    },
+    {
+      "id": "NP-06",
+      "category": "positional",
+      "description": "Cornered against a special windup — only one winning play.",
+      "agent": { "side": "P1", "position": -3.8, "guard": 3, "move": "STAND", "move_frame": 0 },
+      "opponent": { "position": -2.5, "guard": 3, "move": "N_SPECIAL", "move_frame": 10 },
+      "expected_action": "FORWARD_ATTACK",
+      "rationale": "Pinned in corner, unblockable threat incoming, no retreat. Forward+attack interrupts the windup — failure to commit guarantees loss."
+    }
+
+  ]
+}
