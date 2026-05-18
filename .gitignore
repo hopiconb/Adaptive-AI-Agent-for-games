@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+
+# Virtual environment — committed dependencies via requirements.txt instead
+venv/
+.venv/
+env/
+
+# Unity build output — multi-GB, regeneratable from source
+footsies-env/Build/
+footsies-env/Library/
+footsies-env/Temp/
+footsies-env/Logs/
+footsies-env/obj/
+footsies-env/UserSettings/
+footsies-env/MemoryCaptures/
+*.app/
+
+# Trained models — too large for git, link via Releases if needed
+models/
+*.zip
+!scenarios.zip
+
+# Training logs and TensorBoard event files
+logs/
+*.tfevents.*
+events.out.tfevents.*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Results — kept in repo (small, important for reproducibility)
+# !results/
+
+# Local notes / scratch
+scratch/
+notes_local.md
+
+# Claude Code project memory — not part of the codebase
+.claude/
+
+# Thesis document drafts — tracked separately if needed
+lucrare_scrisa/
