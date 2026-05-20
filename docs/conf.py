@@ -26,6 +26,19 @@ intersphinx_mapping = {
     "gymnasium": ("https://gymnasium.farama.org", None),
 }
 
+# ── Mock heavy runtime deps so autodoc works without installing torch/SB3 ─────
+# These packages are not needed to render our own docstrings; mocking them keeps
+# the CI build fast (~30 s) and avoids SDL/GPU library requirements on the runner.
+# Our documented classes inherit from gymnasium (not mocked), so inheritance
+# display is unaffected.
+autodoc_mock_imports = [
+    "torch",
+    "stable_baselines3",
+    "footsies_gym",
+    "pygame",
+    "tensorboard",
+]
+
 # ── autodoc defaults ──────────────────────────────────────────────────────────
 autodoc_default_options = {
     "members":          True,

@@ -1,0 +1,57 @@
+name: Deploy Sphinx Docs
+
+on:
+  push:
+    branches: [main]
+  # Allow manual re-runs from the Actions tab
+  workflow_dispatch:
+
+# Required for the modern GitHub Pages deployment API
+permissions:
+  contents: read
+  pages:    write
+  id-token: write
+
+# Only one deployment runs at a time; a newer push cancels an in-progress one
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install docs dependencies
+        # Heavy runtime packages (torch, stable-baselines3, footsies_gym, pygame)
+        # are mocked via autodoc_mock_imports in docs/conf.py — no need to install them.
+        run: pip install sphinx gymnasium numpy scipy pandas matplotlib
+
+      - name: Build HTML docs
+        run: sphinx-build -b html docs docs/_build/html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
