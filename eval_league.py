@@ -46,7 +46,16 @@ MAX_STEPS    = 12_000     # step cap per match (~4 min of real-time game)
 # ── Observation utilities ─────────────────────────────────────────────────────
 
 def to_numpy_obs(obs: dict) -> dict:
-    """Convert raw tuple obs (from FootsiesEnv internal state) to numpy arrays."""
+    """Convert a raw FootsiesEnv observation (Python tuples) to typed numpy arrays.
+
+    Used when the environment was not wrapped with NumpyObsWrapper, e.g., inside
+    opponent callbacks that receive the raw obs directly from the engine.
+
+    Args:
+        obs: Dict with tuple values as returned by FootsiesEnv.
+    Returns:
+        Dict with the same keys and correctly typed numpy array values.
+    """
     return {
         "guard":      np.array(obs["guard"],      dtype=np.int64),
         "move":       np.array(obs["move"],       dtype=np.int64),
@@ -56,10 +65,18 @@ def to_numpy_obs(obs: dict) -> dict:
 
 
 def swap_to_p2_perspective(obs: dict) -> dict:
-    """
-    Flip a P1-perspective obs dict so the agent can reason as if it were P1.
-    Positions are negated so the coordinate frame is mirrored (symmetric game).
-    Works on both raw tuple obs and numpy-array obs.
+    """Reframe a P1-perspective observation as if the P2 player were P1.
+
+    FootsiesEnv always emits observations from P1's point of view. When the trained
+    agent plays as P2, its learned policy expects to be at index 0; this function
+    swaps the two player slots and negates positions so the coordinate origin is
+    mirrored, preserving the spatial semantics of the policy.
+
+    Args:
+        obs: Numpy or tuple obs dict in P1-perspective format.
+    Returns:
+        New obs dict where guard/move/move_frame slots are exchanged and positions
+        are negated, giving the agent a consistent P1-like view.
     """
     return {
         "guard":      np.array([obs["guard"][1],      obs["guard"][0]],      dtype=np.int64),
@@ -72,11 +89,29 @@ def swap_to_p2_perspective(obs: dict) -> dict:
 # ── Baseline policies ─────────────────────────────────────────────────────────
 
 def random_policy(obs, info=None):
+    """Baseline policy that samples a uniformly random MultiBinary(3) action each step.
+
+    Args:
+        obs: Ignored — present only to satisfy the opponent-callable signature.
+        info: Ignored.
+    Returns:
+        A 3-tuple of booleans drawn independently from Bernoulli(0.5).
+    """
     return tuple(bool(x) for x in np.random.randint(0, 2, 3))
 
 
 def backward_policy_as_p2(obs, info=None):
-    """P2 always moves away from P1. obs is raw P1-perspective (tuples or arrays)."""
+    """Baseline policy for the P2 slot: always move away from the opponent.
+
+    Reads positions from the raw P1-perspective obs (index 0 = P1, index 1 = P2) and
+    returns the MultiBinary action that moves P2 further from P1.
+
+    Args:
+        obs: Raw or numpy obs dict in P1-perspective format.
+        info: Ignored.
+    Returns:
+        3-tuple (left, right, attack) booleans directing P2 away from P1.
+    """
     p1_pos, p2_pos = float(obs["position"][0]), float(obs["position"][1])
     if p2_pos >= p1_pos:
         return (False, True, False)   # move right (further from P1)
@@ -84,7 +119,17 @@ def backward_policy_as_p2(obs, info=None):
 
 
 def backward_policy_as_p1(obs, info=None):
-    """P1 always moves away from P2. obs is numpy P1-perspective (from NumpyObsWrapper)."""
+    """Baseline policy for the P1 slot: always move away from the opponent.
+
+    Mirror image of backward_policy_as_p2 but operating on NumpyObsWrapper output
+    where positions are already numpy arrays.
+
+    Args:
+        obs: Numpy obs dict in P1-perspective format (from NumpyObsWrapper).
+        info: Ignored.
+    Returns:
+        3-tuple (left, right, attack) booleans directing P1 away from P2.
+    """
     p1_pos, p2_pos = float(obs["position"][0]), float(obs["position"][1])
     if p1_pos <= p2_pos:
         return (True, False, False)   # move left (further from P2)
@@ -94,10 +139,17 @@ def backward_policy_as_p1(obs, info=None):
 # ── Agent-as-P2 opponent factory ──────────────────────────────────────────────
 
 def make_agent_p2_opponent(model: PPO):
-    """
-    Returns a callable suitable for the FootsiesEnv opponent slot.
-    The env passes raw P1-perspective obs; this swaps to P2's frame before
-    querying the model so the agent's learned policy applies correctly.
+    """Build a FootsiesEnv opponent callable that runs the trained agent as P2.
+
+    FootsiesEnv passes raw P1-perspective obs to the opponent callback. This factory
+    wraps the model so the obs is flipped to P2's frame via swap_to_p2_perspective
+    before the model.predict call, ensuring the agent sees a consistent coordinate
+    system regardless of which side it occupies.
+
+    Args:
+        model: Trained PPO model whose predict method accepts the standard obs dict.
+    Returns:
+        A callable (obs, info) → action_tuple suitable for FootsiesEnv's opponent= arg.
     """
     def _opponent(obs: dict, info: dict):
         p2_obs = swap_to_p2_perspective(obs)
@@ -109,6 +161,19 @@ def make_agent_p2_opponent(model: PPO):
 # ── Environment factory ───────────────────────────────────────────────────────
 
 def make_eval_env(opponent=None, fast_forward_speed: float = 20.0) -> gym.Env:
+    """Construct a single, headless FootsiesEnv wrapped with NumpyObsWrapper.
+
+    Uses sparse reward (dense_reward=False) so the terminal reward sign cleanly
+    encodes win (+1) or loss (−1), which is what the match runners check to determine
+    the outcome. Wraps in NumpyObsWrapper so model.predict receives typed arrays.
+
+    Args:
+        opponent: Callable passed to FootsiesEnv as the P2 controller, or None to
+                  use the game's built-in CPU bot.
+        fast_forward_speed: Game speed multiplier for the Unity subprocess.
+    Returns:
+        A NumpyObsWrapper-wrapped FootsiesEnv ready for evaluation.
+    """
     env = gym.make(
         "FootsiesEnv-v0",
         game_path=GAME_PATH,
@@ -126,7 +191,18 @@ def make_eval_env(opponent=None, fast_forward_speed: float = 20.0) -> gym.Env:
 # ── Match runners ─────────────────────────────────────────────────────────────
 
 def run_match_agent_p1(env: gym.Env, model: PPO) -> dict:
-    """Agent controls P1; env.opponent (set at creation) controls P2."""
+    """Run one match with the trained agent as P1 and return the outcome.
+
+    The P2 controller was baked into the env at creation time via make_eval_env.
+    A step cap of MAX_STEPS prevents infinite loops against non-terminating opponents.
+
+    Args:
+        env: A NumpyObsWrapper-wrapped FootsiesEnv with the desired P2 opponent set.
+        model: Trained PPO model used to select P1 actions deterministically.
+    Returns:
+        Dict with keys agent_won (bool), agent_guard (int), opp_guard (int),
+        frames (int).
+    """
     obs, info = env.reset()
     terminated = truncated = False
     steps = 0
@@ -146,9 +222,18 @@ def run_match_agent_p1(env: gym.Env, model: PPO) -> dict:
 
 
 def run_match_agent_p2(env: gym.Env, p1_policy) -> dict:
-    """
-    Agent controls P2 (via env.opponent set at creation).
-    p1_policy controls P1 in the outer loop via env.step().
+    """Run one match with the trained agent as P2 and return the outcome.
+
+    The agent controls P2 via the opponent callback baked into the env. This function
+    feeds p1_policy actions into env.step() as P1, so reward signs are from P1's
+    perspective: a negative terminal reward means P2 (the agent) won.
+
+    Args:
+        env: FootsiesEnv where the agent's model was set as env.opponent at creation.
+        p1_policy: Callable (obs, info) → action_tuple used to control P1 each step.
+    Returns:
+        Dict with keys agent_won (bool), agent_guard (int), opp_guard (int),
+        frames (int) — all expressed from the agent's (P2) perspective.
     """
     obs, info = env.reset()  # obs is NumpyObsWrapper-processed P1 view
     terminated = truncated = False
@@ -172,6 +257,18 @@ def run_match_agent_p2(env: gym.Env, p1_policy) -> dict:
 # ── Statistics ────────────────────────────────────────────────────────────────
 
 def wilson_ci(wins: int, n: int, z: float = 1.959964) -> tuple[float, float]:
+    """Compute the Wilson score 95% confidence interval for a binomial proportion.
+
+    More accurate than the normal approximation near p=0 or p=1, which matters when
+    win rates are low. Returns (0, 1) as a fallback when n is 0.
+
+    Args:
+        wins: Number of successes (wins).
+        n: Total trials (matches).
+        z: Standard normal quantile; default 1.959964 ≈ z_{0.975} for 95% CI.
+    Returns:
+        (lower, upper) confidence interval bounds, both clipped to [0, 1].
+    """
     if n == 0:
         return (0.0, 1.0)
     p = wins / n
@@ -182,7 +279,17 @@ def wilson_ci(wins: int, n: int, z: float = 1.959964) -> tuple[float, float]:
 
 
 def wilcoxon_vs_chance(results: list[bool]) -> tuple[float, float]:
-    """One-sample Wilcoxon signed-rank test H0: win_rate = 0.5."""
+    """Run a one-sample Wilcoxon signed-rank test against H₀: win_rate = 0.5.
+
+    Encodes each result as +1 (win) or −1 (loss) and tests whether the median
+    differs from zero. Handles degenerate inputs (all wins or all losses) by
+    returning (nan, 0.0) or (nan, 1.0) respectively.
+
+    Args:
+        results: List of booleans, one per match (True = agent won).
+    Returns:
+        (statistic, p_value) floats; either may be nan for degenerate inputs.
+    """
     x = np.array([1.0 if w else -1.0 for w in results])
     if len(set(x)) == 1:
         return (float("nan"), 0.0 if x[0] > 0 else 1.0)
@@ -204,7 +311,25 @@ def evaluate_baseline(
     p1_policy,
     cpu_bot: bool,
 ) -> list[dict]:
-    """Run all matches for one baseline, return list of result dicts."""
+    """Play n_matches against one baseline policy and return per-match result rows.
+
+    For non-cpu_bot baselines, n_matches is split evenly: n/2 with the agent as P1
+    and n/2 with the agent as P2, ensuring the win-rate estimate is side-agnostic.
+    For cpu_bot the game's built-in bot must occupy P2, so all matches are agent=P1.
+    A 1.5-second sleep between phases lets the OS release the game's network port.
+
+    Args:
+        baseline_name: Label stored in the result rows (e.g. "random").
+        model: Trained PPO model used for the agent's actions.
+        n_matches: Total matches to play (must be even for non-cpu_bot baselines).
+        fast_forward_speed: Game speed multiplier.
+        agent_p2_opponent: Pre-built opponent callable for the P2-agent phase.
+        p1_policy: Baseline callable used as P1 during the P2-agent phase.
+        cpu_bot: If True, skip the P2 phase entirely.
+    Returns:
+        List of dicts with keys match_id, opponent, agent_side, agent_won,
+        agent_guard, opp_guard, frames.
+    """
     rows = []
     match_id = 0
 
@@ -255,6 +380,13 @@ def evaluate_baseline(
 
 
 def main():
+    """CLI entry point: load a model, run the league evaluation, and write results.
+
+    Iterates over all three baselines (random, backward, cpu_bot), calls
+    evaluate_baseline for each, computes Wilson CIs and Wilcoxon tests with
+    Bonferroni correction, then writes league_results.csv and league_summary.json
+    to the directory specified by --results-dir.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--model",   default=None,
                         help="Path to .zip model. Default: latest checkpoint in models/")
@@ -262,6 +394,8 @@ def main():
                         help="Total matches per baseline (default 100; must be even)")
     parser.add_argument("--speed",   type=float, default=20.0,
                         help="Game fast-forward multiplier")
+    parser.add_argument("--results-dir", default=RESULTS_DIR,
+                        help="Directory for CSV and JSON output (default: results/)")
     args = parser.parse_args()
 
     if args.matches % 2 != 0:
@@ -285,9 +419,10 @@ def main():
         ("cpu_bot",  None,                   True),
     ]
 
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    csv_path  = os.path.join(RESULTS_DIR, "league_results.csv")
-    json_path = os.path.join(RESULTS_DIR, "league_summary.json")
+    results_dir = args.results_dir
+    os.makedirs(results_dir, exist_ok=True)
+    csv_path  = os.path.join(results_dir, "league_results.csv")
+    json_path = os.path.join(results_dir, "league_summary.json")
 
     CSV_FIELDS = ["match_id", "opponent", "agent_side",
                   "agent_won", "agent_guard", "opp_guard", "frames"]

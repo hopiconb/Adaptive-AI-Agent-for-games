@@ -1,37 +1,36 @@
 """
 Tactical scenario evaluation for a trained FOOTSIES PPO agent.
 
-Reads scenarios.json (nested agent/opponent format), constructs the obs dict for
+Reads ``scenarios.json`` (nested agent/opponent format), constructs the obs dict for
 each scenario, and records whether the model's deterministic action matches the
 expected semantic action. No game process is needed — the model only ever sees the
-obs dict, so model.predict(synthetic_obs) is identical to querying it mid-game in
-that exact state.
+obs dict, so ``model.predict(synthetic_obs)`` is identical to querying it mid-game.
 
-Expected scenario format (see scenarios.json for full example)
---------------------------------------------------------------
-{
-  "metadata": { "action_map": {...}, "move_map": {...} },
-  "scenarios": [
+Expected scenario format (see ``scenarios.json`` for full example)::
+
     {
-      "id": "WP-01",
-      "category": "whiff_punishment",
-      "description": "...",
-      "agent":    { "side": "P1", "position": -1.0, "guard": 3,
-                    "move": "STAND", "move_frame": 0 },
-      "opponent": {                  "position":  0.8, "guard": 3,
-                    "move": "B_ATTACK", "move_frame": 20 },
-      "expected_action": "FORWARD_ATTACK"
+      "metadata": { "action_map": {...}, "move_map": {...} },
+      "scenarios": [
+        {
+          "id": "WP-01",
+          "category": "whiff_punishment",
+          "description": "...",
+          "agent":    { "side": "P1", "position": -1.0, "guard": 3,
+                        "move": "STAND", "move_frame": 0 },
+          "opponent": { "position": 0.8, "guard": 3,
+                        "move": "B_ATTACK", "move_frame": 20 },
+          "expected_action": "FORWARD_ATTACK"
+        }
+      ]
     }
-  ]
-}
 
-Action strings (resolved against agent.side)
-  IDLE / FORWARD / BACKWARD / ATTACK / FORWARD_ATTACK / BACKWARD_ATTACK
+Action strings (resolved against ``agent.side``):
+``IDLE`` / ``FORWARD`` / ``BACKWARD`` / ``ATTACK`` / ``FORWARD_ATTACK`` / ``BACKWARD_ATTACK``
 
-Outputs
--------
-  results/scenario_results.csv   – per-scenario pass/fail
-  (stdout)                       – aggregate pass rate by category
+Outputs:
+
+- ``results/scenario_results.csv`` — per-scenario pass/fail
+- stdout — aggregate pass rate by category
 """
 import os
 import csv
@@ -80,7 +79,20 @@ ACTION_TABLE: dict[str, dict[str, list[int]]] = {
 
 
 def resolve_action(semantic: str, side: str) -> list[int]:
-    """Convert a semantic action string to MultiBinary(3) for the given agent side."""
+    """Translate a human-readable action name to the MultiBinary(3) vector for one side.
+
+    FORWARD and BACKWARD are agent-relative: P2's coordinate frame is mirrored, so
+    the bits that encode left/right movement are swapped compared to P1. ACTION_TABLE
+    stores both mappings; this function performs the lookup and raises on unknown names.
+
+    Args:
+        semantic: Action name string, e.g. "FORWARD_ATTACK". Case-insensitive.
+        side: "P1" or "P2" (case-insensitive); controls which mapping row is used.
+    Returns:
+        [left, right, attack] list of ints (each 0 or 1).
+    Raises:
+        ValueError: If semantic is not a key in the action table.
+    """
     key = semantic.upper()
     table = ACTION_TABLE.get(side.upper(), ACTION_TABLE["P1"])
     if key not in table:
@@ -91,15 +103,22 @@ def resolve_action(semantic: str, side: str) -> list[int]:
 
 
 def build_obs(sc: dict) -> tuple[dict, dict]:
-    """
-    Build the obs dict from a scenario (always from agent's perspective as P1).
-    Returns (obs, debug_info) where debug_info records the raw field values.
+    """Construct a synthetic observation dict from a scenario definition.
 
-    Agent perspective:
-      obs["guard"][0]      = agent guard
-      obs["position"][0]   = agent position (mirrored for P2 side)
-      obs["guard"][1]      = opponent guard
-      obs["position"][1]   = opponent position (mirrored for P2 side)
+    The scenario JSON encodes absolute positions, guard counts, move names, and frame
+    indices for both characters. This function converts them into the exact numpy obs
+    format that NumpyObsWrapper would produce during a live game, so model.predict
+    receives an identical input whether called here or mid-match. For P2-side agents,
+    positions are negated so the agent always sees itself at a negative X coordinate.
+
+    Args:
+        sc: Single scenario dict from scenarios.json (must have "agent" and "opponent"
+            sub-dicts with keys: side, position, guard, move, move_frame).
+    Returns:
+        (obs, debug) where obs is the numpy obs dict ready for model.predict, and
+        debug is a flat dict of the raw field values written to the results CSV.
+    Raises:
+        ValueError: If a move name is not present in MOVE_NAME_TO_INDEX.
     """
     agent    = sc["agent"]
     opponent = sc["opponent"]
@@ -143,11 +162,20 @@ def build_obs(sc: dict) -> tuple[dict, dict]:
 
 
 def main():
+    """CLI entry point: load a model, run all scenarios, and write results.
+
+    Iterates over every scenario in scenarios.json, calls build_obs and resolve_action
+    to construct the expected input/output pair, queries the model deterministically,
+    and records pass/fail per scenario. Prints a per-category progress bar to stdout
+    and writes the full per-scenario CSV to --results-dir/scenario_results.csv.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=None,
                         help="Path to .zip model. Default: latest checkpoint in models/")
     parser.add_argument("--scenarios", default=SCENARIOS_FILE,
                         help=f"Path to scenarios JSON (default: {SCENARIOS_FILE})")
+    parser.add_argument("--results-dir", default=RESULTS_DIR,
+                        help="Directory for CSV output (default: results/)")
     args = parser.parse_args()
 
     # ── Load model ────────────────────────────────────────────────────────────
@@ -171,7 +199,9 @@ def main():
     scenarios = data["scenarios"]
     print(f"Scenarios: {len(scenarios)} loaded\n")
 
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    results_dir = args.results_dir
+    os.makedirs(results_dir, exist_ok=True)
+    csv_path = os.path.join(results_dir, "scenario_results.csv")
 
     rows: list[dict] = []
     by_cat: dict[str, list[bool]] = {}
@@ -219,11 +249,11 @@ def main():
     print(f"\n  Overall: {total_pass}/{total} ({100*total_pass/total:.0f}%)")
 
     # ── Write CSV ─────────────────────────────────────────────────────────────
-    with open(CSV_PATH, "w", newline="") as f:
+    with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
-    print(f"\nScenario CSV → {CSV_PATH}")
+    print(f"\nScenario CSV → {csv_path}")
 
 
 if __name__ == "__main__":

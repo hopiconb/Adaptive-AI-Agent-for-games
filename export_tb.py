@@ -1,9 +1,10 @@
 """
 Export TensorBoard scalar logs to CSV.
-Reads all PPO_footsies_* subdirectories under logs/ and merges them into
-results/training_curves.csv with columns:
-  step, ep_rew_mean, ep_len_mean, value_loss, policy_loss,
-  entropy_loss, explained_variance, approx_kl, run
+
+Reads all ``PPO_footsies_*`` subdirectories under ``logs/`` and merges them into
+``results/training_curves.csv`` with columns:
+``run``, ``step``, ``ep_rew_mean``, ``ep_len_mean``, ``value_loss``,
+``policy_loss``, ``entropy_loss``, ``explained_variance``, ``approx_kl``.
 """
 import os
 import glob
@@ -26,6 +27,22 @@ COLUMNS = ["run", "step"] + list(SCALAR_MAP.values())
 
 
 def load_run(run_dir: str) -> list[dict]:
+    """Read all tracked scalars from one TensorBoard event directory.
+
+    Uses EventAccumulator to parse the binary protobuf event files. For each scalar
+    tag that appears in SCALAR_MAP, extracts every (step, value) pair and merges them
+    into a step-keyed dict so that all scalars recorded at the same step end up in a
+    single output row. Tags absent from the run (e.g., value_loss before the first
+    gradient update) are silently skipped.
+
+    Args:
+        run_dir: Path to a directory containing TensorBoard event files, typically
+                 logs/PPO_footsies_N/.
+    Returns:
+        List of dicts sorted by step, each containing "run", "step", and one key per
+        scalar that was recorded at that step. Missing scalars produce no key (the CSV
+        writer leaves the cell blank).
+    """
     ea = EventAccumulator(run_dir)
     ea.Reload()
     available = set(ea.Tags().get("scalars", []))
@@ -49,6 +66,13 @@ def load_run(run_dir: str) -> list[dict]:
 
 
 def main():
+    """Discover all PPO training runs under logs/, export their scalars to one CSV.
+
+    Scans for PPO_footsies_*/ subdirectories in LOGS_DIR, calls load_run for each,
+    concatenates the rows, and writes them to OUTPUT_CSV. The "run" column in the CSV
+    identifies which training run each row belongs to, enabling multi-run comparisons
+    in generate_thesis_figures.py.
+    """
     os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
 
     all_rows: list[dict] = []

@@ -23,6 +23,13 @@ MAX_STEPS = 12_000
 
 
 def main():
+    """Load a PPO model and run it visually against the built-in CPU bot.
+
+    Opens the Unity game window in render_mode="human" (requires a display). Prints
+    per-episode win/loss, step count, and running win rate to stdout. Catches
+    KeyboardInterrupt so the env is always closed cleanly. A step cap of MAX_STEPS
+    per episode prevents hangs if neither player can finish.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default=None,
                         help="Path to .zip checkpoint. Default: latest in models/")

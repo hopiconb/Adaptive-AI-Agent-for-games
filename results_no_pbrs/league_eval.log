@@ -1,0 +1,18 @@
+Model: models_no_pbrs/ppo_footsies_final.zip
+
+── RANDOM ──
+  random │ 50 matches as P1 … 15/50 wins
+  random │ 50 matches as P2 … 18/50 wins
+  win rate: 33.0%  CI95: [0.246, 0.427]  Wilcoxon p=0.0007  sig@0.0167: True
+
+── BACKWARD ──
+  backward │ 50 matches as P1 … 0/50 wins
+  backward │ 50 matches as P2 … 0/50 wins
+  win rate: 0.0%  CI95: [0.000, 0.037]  Wilcoxon p=1.0000  sig@0.0167: False
+
+── CPU_BOT ──
+  cpu_bot │ 100 matches as P1 … 48/100 wins
+  win rate: 48.0%  CI95: [0.385, 0.577]  Wilcoxon p=0.6892  sig@0.0167: False
+
+Results CSV  → results_no_pbrs/league_results.csv
+Summary JSON → results_no_pbrs/league_summary.json

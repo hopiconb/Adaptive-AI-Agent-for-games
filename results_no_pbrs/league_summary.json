@@ -1,0 +1,53 @@
+{
+  "random": {
+    "n_matches": 100,
+    "wins": 33,
+    "win_rate": 0.33,
+    "wilson_ci_95": [
+      0.2456,
+      0.4269
+    ],
+    "wilcoxon_stat": 1666.5,
+    "wilcoxon_p": 0.000674,
+    "bonferroni_alpha": 0.01667,
+    "significant": true,
+    "mean_agent_guard": 1.29,
+    "mean_opp_guard": 2.14,
+    "mean_frames": 1080.5,
+    "note_cpu_bot": null
+  },
+  "backward": {
+    "n_matches": 100,
+    "wins": 0,
+    "win_rate": 0.0,
+    "wilson_ci_95": [
+      0.0,
+      0.037
+    ],
+    "wilcoxon_stat": null,
+    "wilcoxon_p": 1.0,
+    "bonferroni_alpha": 0.01667,
+    "significant": false,
+    "mean_agent_guard": 3.0,
+    "mean_opp_guard": 3.0,
+    "mean_frames": 11999.0,
+    "note_cpu_bot": null
+  },
+  "cpu_bot": {
+    "n_matches": 100,
+    "wins": 48,
+    "win_rate": 0.48,
+    "wilson_ci_95": [
+      0.3846,
+      0.5768
+    ],
+    "wilcoxon_stat": 2424.0,
+    "wilcoxon_p": 0.689157,
+    "bonferroni_alpha": 0.01667,
+    "significant": false,
+    "mean_agent_guard": 1.63,
+    "mean_opp_guard": 1.64,
+    "mean_frames": 172.1,
+    "note_cpu_bot": "all 100 matches played as P1 (built-in bot must be P2)"
+  }
+}

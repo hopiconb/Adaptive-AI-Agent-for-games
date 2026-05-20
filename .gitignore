@@ -22,11 +22,13 @@ footsies-env/MemoryCaptures/
 
 # Trained models — too large for git, link via Releases if needed
 models/
+models_no_pbrs/
 *.zip
 !scenarios.zip
 
 # Training logs and TensorBoard event files
 logs/
+logs_no_pbrs/
 *.tfevents.*
 events.out.tfevents.*
 
@@ -46,9 +48,16 @@ Thumbs.db
 # Results — kept in repo (small, important for reproducibility)
 # !results/
 
+# Sphinx build output — regeneratable with `make html` in docs/
+docs/_build/
+
+# Generated screenshots from visualize_agent.py
+screenshots/
+
 # Local notes / scratch
 scratch/
 notes_local.md
+snippets.txt
 
 # Claude Code project memory — not part of the codebase
 .claude/

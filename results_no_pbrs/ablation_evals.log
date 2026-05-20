@@ -1,0 +1,73 @@
+[ablation-evals] Waiting for train.py --no-pbrs to finish...
+[ablation-evals] Training process gone. Checking for final model...
+[ablation-evals] Found models_no_pbrs/ppo_footsies_final.zip — starting evaluations.
+
+=== League evaluation ===
+Model: models_no_pbrs/ppo_footsies_final.zip
+
+── RANDOM ──
+  random │ 50 matches as P1 … 15/50 wins
+  random │ 50 matches as P2 … 18/50 wins
+  win rate: 33.0%  CI95: [0.246, 0.427]  Wilcoxon p=0.0007  sig@0.0167: True
+
+── BACKWARD ──
+  backward │ 50 matches as P1 … 0/50 wins
+  backward │ 50 matches as P2 … 0/50 wins
+  win rate: 0.0%  CI95: [0.000, 0.037]  Wilcoxon p=1.0000  sig@0.0167: False
+
+── CPU_BOT ──
+  cpu_bot │ 100 matches as P1 … 48/100 wins
+  win rate: 48.0%  CI95: [0.385, 0.577]  Wilcoxon p=0.6892  sig@0.0167: False
+
+Results CSV  → results_no_pbrs/league_results.csv
+Summary JSON → results_no_pbrs/league_summary.json
+
+=== Scenario evaluation ===
+Model:     models_no_pbrs/ppo_footsies_final.zip
+Scenarios: 30 loaded
+
+  [PASS ✓] WP-01    [whiff_punishment]  exp=[0, 1, 1]  got=[0, 1, 1]  | Opponent in mid-recovery of long attack at mid ran
+  [FAIL ✗] WP-02    [whiff_punishment]  exp=[0, 0, 1]  got=[0, 1, 1]  | Opponent in normal-attack recovery at close range.
+  [FAIL ✗] WP-03    [whiff_punishment]  exp=[0, 1, 0]  got=[1, 0, 0]  | Opponent committed to long attack at far range — a
+  [FAIL ✗] WP-04    [whiff_punishment]  exp=[0, 0, 1]  got=[1, 1, 1]  | Long attack deep recovery at the edge of normal-at
+  [PASS ✓] WP-05    [whiff_punishment]  exp=[0, 1, 1]  got=[0, 1, 1]  | Long attack recovery far away — chase required.
+  [FAIL ✗] WP-06    [whiff_punishment]  exp=[0, 0, 1]  got=[1, 1, 0]  | Opponent in committed forward dash at close range.
+  [FAIL ✗] WP-07    [whiff_punishment]  exp=[0, 1, 1]  got=[0, 1, 0]  | Special-attack windup at mid range — interrupt win
+  [FAIL ✗] WP-08    [whiff_punishment]  exp=[0, 0, 1]  got=[0, 1, 1]  | Punish opportunity but agent guard is broken.
+  [FAIL ✗] WP-09    [whiff_punishment]  exp=[0, 1, 1]  got=[1, 1, 0]  | Cornered opponent in long-attack recovery.
+  [FAIL ✗] WP-10    [whiff_punishment]  exp=[0, 0, 1]  got=[1, 1, 1]  | Normal attack just whiffed at close range.
+  [FAIL ✗] GP-01    [guard_pressure]  exp=[1, 0, 0]  got=[1, 1, 0]  | Full guard, opponent active attack at close range.
+  [PASS ✓] GP-02    [guard_pressure]  exp=[1, 0, 0]  got=[1, 0, 0]  | Guard at 2, opponent attacking — block remains opt
+  [FAIL ✗] GP-03    [guard_pressure]  exp=[1, 0, 0]  got=[1, 1, 1]  | Critical guard at 1, opponent attacking.
+  [FAIL ✗] GP-04    [guard_pressure]  exp=[1, 0, 0]  got=[0, 1, 0]  | Broken guard, opponent advancing — escape.
+  [FAIL ✗] GP-05    [guard_pressure]  exp=[0, 1, 1]  got=[1, 1, 1]  | Low guard but opponent in recovery — counter, do n
+  [FAIL ✗] GP-06    [guard_pressure]  exp=[0, 0, 1]  got=[0, 1, 0]  | Full guard against close-range special windup.
+  [FAIL ✗] GP-07    [guard_pressure]  exp=[0, 1, 1]  got=[1, 0, 0]  | Adequate guard, opponent walking — preempt their o
+  [PASS ✓] GP-08    [guard_pressure]  exp=[0, 1, 1]  got=[0, 1, 1]  | Cornered with low guard — must contest space outwa
+  [FAIL ✗] SP-01    [special_defense]  exp=[0, 0, 1]  got=[1, 1, 0]  | Special windup at close range — interrupt directly
+  [FAIL ✗] SP-02    [special_defense]  exp=[0, 1, 1]  got=[0, 1, 0]  | Special windup at mid range — close and interrupt.
+  [FAIL ✗] SP-03    [special_defense]  exp=[1, 0, 0]  got=[0, 1, 0]  | Special windup at far range — evade.
+  [FAIL ✗] SP-04    [special_defense]  exp=[0, 1, 1]  got=[0, 0, 1]  | Cornered, opponent windup at mid range — must cont
+  [FAIL ✗] SP-05    [special_defense]  exp=[0, 0, 1]  got=[1, 1, 1]  | Late special windup at close range — last interrup
+  [PASS ✓] SP-06    [special_defense]  exp=[0, 1, 1]  got=[0, 1, 1]  | Mid-range special windup with broken guard.
+  [FAIL ✗] NP-01    [positional]  exp=[0, 1, 0]  got=[0, 0, 1]  | Symmetric neutral start — claim engagement initiat
+  [FAIL ✗] NP-02    [positional]  exp=[0, 1, 1]  got=[0, 0, 0]  | Opponent cornered and idle — apply pressure.
+  [FAIL ✗] NP-03    [positional]  exp=[0, 1, 0]  got=[0, 1, 1]  | Agent in corner, opponent at mid range and idle — 
+  [FAIL ✗] NP-04    [positional]  exp=[0, 0, 1]  got=[1, 0, 0]  | Mirror walk-forward — both committed at mid range.
+  [FAIL ✗] NP-05    [positional]  exp=[0, 1, 1]  got=[1, 0, 0]  | Opponent retreating — chase aggressively.
+  [FAIL ✗] NP-06    [positional]  exp=[0, 1, 1]  got=[0, 0, 1]  | Cornered against a special windup — only one winni
+
+── Category summary ──────────────────────────────────────────────
+  guard_pressure        :  2/ 8  ██░░░░░░
+  positional            :  0/ 6  ░░░░░░
+  special_defense       :  1/ 6  █░░░░░
+  whiff_punishment      :  2/10  ██░░░░░░░░
+
+  Overall: 5/30 (17%)
+
+Scenario CSV → results_no_pbrs/scenario_results.csv
+
+[ablation-evals] Done.
+  League results : results_no_pbrs/league_results.csv
+  League summary : results_no_pbrs/league_summary.json
+  Scenario CSV   : results_no_pbrs/scenario_results.csv
